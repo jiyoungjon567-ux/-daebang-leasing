@@ -120,6 +120,8 @@
   .detail-gallery h4{font-size:13px;margin:0 0 10px;color:var(--ink-soft);font-family:var(--font-mono);font-weight:600;}
   .detail-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
   .detail-gallery-grid img{width:100%;display:block;border:1px solid var(--line);cursor:zoom-in;}
+  .gallery-thumb-wrap{position:relative;}
+  .gallery-del{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--pop);color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;}
   .gallery-empty{font-size:12.5px;color:var(--ink-soft);}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
   .lightbox img{max-width:100%;max-height:90vh;}
@@ -371,7 +373,7 @@
           </div>
           <div class="field-row">
             <div class="field"><label>보증금(만원)</label><input type="number" id="f_deposit" placeholder="공실인 경우만"></div>
-            <div class="field"><label>월임대료(만원)</label><input type="number" id="f_rent" placeholder="공실인 경우만"></div>
+            <div class="field"><label>월임대료(만원, VAT 별도)</label><input type="number" id="f_rent" placeholder="공실인 경우만"></div>
           </div>
           <div class="field">
             <label>추천 업종</label>
@@ -416,11 +418,14 @@
 
     <div class="admin-panel" id="panel-excel">
       <p class="admin-note">
-        "매물 업데이트 양식" 엑셀 파일(매물현황 / 건물별_관리비 / 건물별_주소 3개 시트)을 그대로 업로드하면 자동으로 반영됩니다.<br>
+        현재 매물 현황을 엑셀 양식(매물현황 / 건물별_관리비 / 건물별_주소 3개 시트)으로 내려받아 수정한 뒤, 그대로 다시 업로드하면 자동으로 반영됩니다.<br>
         ⚠️ 업로드하면 현재 매물 데이터 전체가 엑셀 내용으로 <b>교체</b>됩니다. 되돌릴 수 없으니 업로드 전 파일 내용을 한 번 더 확인해 주세요.
       </p>
-      <div class="field" style="max-width:420px;">
-        <label>엑셀 파일 선택 (.xlsx)</label>
+      <div class="form-actions">
+        <button class="btn-secondary" id="excelDownloadBtn">현재 현황을 엑셀 양식으로 다운로드</button>
+      </div>
+      <div class="field" style="max-width:420px;margin-top:18px;">
+        <label>수정한 엑셀 파일 업로드 (.xlsx)</label>
         <input type="file" id="excelFileInput" accept=".xlsx,.xls">
       </div>
       <div class="form-actions">
@@ -438,7 +443,7 @@
       <span>임대 문의 · jyh93@db-dvp.co.kr</span>
     </div>
     <div class="legal">
-      본 웹사이트에 게시된 임대조건(보증금, 임대료, 면적 등)은 안내를 위한 참고 자료이며, 실제 계약 조건은 현장 확인 및 임대인과의 협의를 통해 최종 확정됩니다. 관리비는 개별 사용량, 계절적 요인 등에 따라 변동될 수 있어 안내된 금액은 예상치이며 확정 금액이 아닙니다. 정확한 임대조건 및 관리비는 반드시 담당자와 별도로 확인해 주시기 바랍니다.<br>
+      본 웹사이트에 게시된 임대조건(보증금, 임대료, 면적 등)은 안내를 위한 참고 자료이며, 실제 계약 조건은 현장 확인 및 임대인과의 협의를 통해 최종 확정됩니다. 표시된 월 임대료 및 관리비는 부가가치세(VAT) 별도 금액입니다. 관리비는 개별 사용량, 계절적 요인 등에 따라 변동될 수 있어 안내된 금액은 예상치이며 확정 금액이 아닙니다. 정확한 임대조건 및 관리비는 반드시 담당자와 별도로 확인해 주시기 바랍니다.<br>
       본 사이트에 게시된 정보와 실제 현황이 다를 경우 회사는 이에 대한 책임을 지지 않으며, 관련 민원은 상단 임대 문의 채널을 통해 접수해 주시기 바랍니다. 본 사이트는 청약의 유인을 위한 정보 제공 목적이며, 게시 내용이 확정적인 계약 조건을 의미하지 않습니다. "인기" 표시는 방문자의 클릭 수를 집계한 참고 지표이며, 실제 계약 가능성이나 우선순위를 보장하지 않습니다.
     </div>
   </div>
@@ -500,7 +505,7 @@
         <div class="field"><label>연 이자율(%)</label><input type="number" step="0.1" id="loan_rate" value="4.5"></div>
         <div class="field"><label>대출기간(개월)</label><input type="number" id="loan_term" value="24"></div>
       </div>
-      <div class="field"><label>월 임대료(만원)</label><input type="number" id="loan_rent"></div>
+      <div class="field"><label>월 임대료(만원, VAT 별도)</label><input type="number" id="loan_rent"></div>
       <div class="loan-result" id="loanResult"></div>
       <p class="loan-disclaimer">이 계산기는 대출기간 동안 이자만 납부하는 거치식 대출을 가정한 단순 참고용 추정치입니다. 실제 대출 가능 여부, 금리, 상환방식은 금융기관의 심사 결과에 따라 달라지며, 이는 금융 자문이 아닙니다. 정확한 상담은 이용하시는 금융기관 창구를 통해 확인해 주세요.</p>
     </div>
@@ -511,6 +516,7 @@
 <script id="maint-data" type="application/json">{"대방빌딩": "확인 중 (담당자 문의)", "마곡2차 대방 디엠시티 상가": "확인 중 (담당자 문의)", "동탄 대방디엠시티 더센텀 상가": "계약평당 약 10,000원 + 세대 수도광열비 별도", "동탄 대방 엘리움 레이크파크 상가": "계약평당 약 13,000원 + 세대 수도광열비 별도", "충남내포신도시 1차 대방 엘리움 퍼스티지 상가": "확인 중 (담당자 문의)", "양주옥정신도시 대방 엘리움 어반시티 상가": "계약평당 약 13,000원 + 세대 수도광열비 별도", "충남내포신도시 2차 대방 엘리움 더 센트럴 상가": "확인 중 (담당자 문의)", "광주전남혁신 2차 상가": "확인 중 (담당자 문의)"}</script>
 <script id="addr-data" type="application/json">{"대방빌딩": "서울시 강서구 공항대로 248", "동탄 대방디엠시티 더센텀 상가": "경기도 화성시 동탄구 동탄대로 636-14", "충남내포신도시 1차 대방 엘리움 퍼스티지 상가": "충청남도 예산군 충예로 215", "충남내포신도시 2차 대방 엘리움 더 센트럴 상가": "충청남도 홍성군 홍북읍 자경로 18", "동탄 대방 엘리움 레이크파크 상가": "경기도 화성시 동탄구 동탄대로5길 29", "양주옥정신도시 대방 엘리움 어반시티 상가": "경기도 양주시 회천남로 80", "광주전남혁신 2차 상가": "전남 나주시 중야1길 15 (빛가람동)", "마곡2차 대방 디엠시티 상가": ""}</script>
 <script id="images-data" type="application/json">{}</script>
+<script id="unit-images-data" type="application/json">{}</script>
 
 <script>
 /* ---------------- Constants ---------------- */
@@ -546,6 +552,7 @@ let PROPERTIES = [];
 let MAINT_MAP = {};
 let ADDRESS_MAP = {};
 let IMAGE_MAP = {};
+let UNIT_IMAGE_MAP = {};
 let CLICK_COUNTS = {};
 let FAVORITES = new Set();
 let state = { biz:null, region:"all", vacantOnly:false, building:null, favOnly:false };
@@ -580,6 +587,7 @@ async function loadData(){
   await loadJsonKey('daebang_maint_v4', 'maint-data', v=>MAINT_MAP=v);
   await loadJsonKey('daebang_address_v4', 'addr-data', v=>ADDRESS_MAP=v);
   await loadJsonKey('daebang_images_v4', 'images-data', v=>IMAGE_MAP=v);
+  await loadJsonKey('daebang_unit_images_v4', 'unit-images-data', v=>UNIT_IMAGE_MAP=v);
   try{
     const res = await window.storage.get('daebang_clicks_v4', true);
     CLICK_COUNTS = JSON.parse(res.value);
@@ -594,6 +602,7 @@ async function saveProperties(){ if(!storageReady) return; try{ await window.sto
 async function saveMaint(){ if(!storageReady) return; try{ await window.storage.set('daebang_maint_v4', JSON.stringify(MAINT_MAP), true); }catch(e){} }
 async function saveAddress(){ if(!storageReady) return; try{ await window.storage.set('daebang_address_v4', JSON.stringify(ADDRESS_MAP), true); }catch(e){} }
 async function saveImages(){ if(!storageReady) return; try{ await window.storage.set('daebang_images_v4', JSON.stringify(IMAGE_MAP), true); }catch(e){} }
+async function saveUnitImages(){ if(!storageReady) return; try{ await window.storage.set('daebang_unit_images_v4', JSON.stringify(UNIT_IMAGE_MAP), true); }catch(e){} }
 async function saveClicks(){ if(!storageReady) return; try{ await window.storage.set('daebang_clicks_v4', JSON.stringify(CLICK_COUNTS), true); }catch(e){} }
 
 /* ---------------- Helpers ---------------- */
@@ -658,7 +667,7 @@ function propertyCard(p, popularIds){
   const rent = fmtWon(p.rentManwon);
   const priceRows = (p.status==="vacant")
     ? `<div class="spec-row"><span class="k">보증금</span><span class="v">${deposit || "문의"}</span></div>
-       <div class="spec-row"><span class="k">월 임대료</span><span class="v">${rent || "문의"}</span></div>`
+       <div class="spec-row"><span class="k">월 임대료 (VAT 별도)</span><span class="v">${rent || "문의"}</span></div>`
     : `<div class="spec-row"><span class="k">임대조건</span><span class="v">비공개</span></div>`;
   const maint = MAINT_MAP[p.building] || "확인 중 (담당자 문의)";
   const addr = ADDRESS_MAP[p.building] || "";
@@ -672,7 +681,7 @@ function propertyCard(p, popularIds){
         <div class="region">${p.region} · 전용 ${p.areaExclusivePy ?? '-'}평 · 계약 ${p.areaContractPy ?? '-'}평</div>
         ${addr ? `<div class="addr">${addr}</div>` : ""}
         <div class="spec-list">${priceRows}</div>
-        <div class="maint-note">관리비 안내: ${maint} (실사용량에 따라 변동될 수 있는 예상 금액)</div>
+        <div class="maint-note">관리비 안내: ${maint} (VAT 별도, 실사용량에 따라 변동될 수 있는 예상 금액)</div>
         ${recTags}
       </div>
       <div class="card-foot"><span class="price">${footPrice}</span><button class="btn-detail" data-detail-id="${p.id}">상세보기</button></div>
@@ -918,7 +927,7 @@ function miniCard(p){
   return `<div class="mini-card">
     <div class="mc-top"><span>${p.region}</span><span>${p.status==="vacant"?"공실":"임대중"}</span></div>
     <h4>${p.building} · ${p.unit}호</h4>
-    <div class="mc-spec">전용 ${p.areaExclusivePy ?? '-'}평 · 보증금 ${deposit||'문의'} · 월 ${rent||'문의'}</div>
+    <div class="mc-spec">전용 ${p.areaExclusivePy ?? '-'}평 · 보증금 ${deposit||'문의'} · 월 ${rent||'문의'}(VAT별도)</div>
   </div>`;
 }
 function ruleBasedFallback(text){
@@ -995,7 +1004,7 @@ function recalcLoan(){
   if(amount > deposit && deposit > 0){ warn = `<div class="loan-warn">대출 희망액이 보증금(${deposit.toLocaleString("ko-KR")}만원)보다 큽니다. 실제 대출 가능액은 이보다 적을 수 있습니다.</div>`; }
   document.getElementById("loanResult").innerHTML = `
     <div class="lr-row"><span>월 대출 이자</span><span class="v">${monthlyInterest.toLocaleString("ko-KR")}만원</span></div>
-    <div class="lr-row"><span>월 임대료</span><span class="v">${rent.toLocaleString("ko-KR")}만원</span></div>
+    <div class="lr-row"><span>월 임대료 (VAT 별도)</span><span class="v">${rent.toLocaleString("ko-KR")}만원</span></div>
     <div class="lr-row total"><span>월 합계 부담액</span><span class="v">${totalMonthly.toLocaleString("ko-KR")}만원</span></div>
     <div class="lr-row"><span>자기부담 보증금</span><span class="v">${selfFunded.toLocaleString("ko-KR")}만원</span></div>
     ${warn}`;
@@ -1031,6 +1040,24 @@ document.getElementById("grid").addEventListener("click", (e)=>{
 });
 
 /* ---------------- Detail modal ---------------- */
+function renderGalleryBlock(title, images, scope, key){
+  const thumbs = images.map((src,i)=>`
+    <div class="gallery-thumb-wrap">
+      <img src="${src}" data-full="${src}" class="gallery-img">
+      ${adminAuthed ? `<button class="gallery-del" data-del-scope="${scope}" data-del-key="${key}" data-del-idx="${i}">&times;</button>` : ""}
+    </div>`).join("");
+  const emptyMsg = images.length ? "" : `<div class="gallery-empty">아직 등록된 이미지가 없습니다.</div>`;
+  const uploadControl = adminAuthed
+    ? `<label class="img-upload-btn" style="margin-top:8px;display:inline-block;">이미지 추가<input type="file" accept="image/*" multiple data-upload-scope="${scope}" data-upload-key="${key}" style="display:none;"></label>`
+    : "";
+  return `<div class="detail-gallery">
+    <h4>${title}</h4>
+    <div class="detail-gallery-grid">${thumbs}</div>
+    ${emptyMsg}
+    ${uploadControl}
+  </div>`;
+}
+
 function openDetailModal(id){
   const p = PROPERTIES.find(x=>x.id===id);
   if(!p) return;
@@ -1040,15 +1067,13 @@ function openDetailModal(id){
   const rent = fmtWon(p.rentManwon);
   const priceRows = (p.status==="vacant")
     ? `<div class="spec-row"><span class="k">보증금</span><span class="v">${deposit || "문의"}</span></div>
-       <div class="spec-row"><span class="k">월 임대료</span><span class="v">${rent || "문의"}</span></div>`
+       <div class="spec-row"><span class="k">월 임대료 (VAT 별도)</span><span class="v">${rent || "문의"}</span></div>`
     : `<div class="spec-row"><span class="k">임대조건</span><span class="v">비공개 (기존 임차인과의 계약 조건)</span></div>`;
   const maint = MAINT_MAP[p.building] || "확인 중 (담당자 문의)";
   const addr = ADDRESS_MAP[p.building] || "";
   const recTags = (p.recommend && p.recommend.length) ? `<div class="rec-tags">${p.recommend.map(r=>`<span class="rec-tag">${r} 추천</span>`).join("")}</div>` : "";
-  const images = IMAGE_MAP[p.building] || [];
-  const galleryHtml = images.length
-    ? `<div class="detail-gallery-grid">${images.map(src=>`<img src="${src}" data-full="${src}">`).join("")}</div>`
-    : `<div class="gallery-empty">아직 등록된 위치 안내 이미지가 없습니다.</div>`;
+  const buildingGallery = renderGalleryBlock("건물 위치 안내", IMAGE_MAP[p.building]||[], "building", p.building);
+  const unitGallery = renderGalleryBlock("호실 사진", UNIT_IMAGE_MAP[p.id]||[], "unit", String(p.id));
   const loanBtn = (p.status==="vacant" && p.depositManwon) ? `<button class="btn-primary" data-modal-loan-id="${p.id}">대출 계산기</button>` : "";
 
   document.getElementById("detailTitle").textContent = `${p.building} · ${p.unit}호`;
@@ -1057,16 +1082,15 @@ function openDetailModal(id){
     <div class="region">${p.region} · 전용 ${p.areaExclusivePy ?? '-'}평 · 계약 ${p.areaContractPy ?? '-'}평</div>
     ${addr ? `<div class="addr">${addr}</div>` : ""}
     <div class="spec-list detail-spec" style="margin-top:10px;">${priceRows}</div>
-    <div class="maint-note">관리비 안내: ${maint} (실사용량에 따라 변동될 수 있는 예상 금액)</div>
+    <div class="maint-note">관리비 안내: ${maint} (VAT 별도, 실사용량에 따라 변동될 수 있는 예상 금액)</div>
     ${recTags}
-    <div class="detail-gallery">
-      <h4>호실 위치 안내</h4>
-      ${galleryHtml}
-    </div>
+    ${unitGallery}
+    ${buildingGallery}
     <div class="detail-actions">
       ${loanBtn}
       <button class="btn-primary" data-modal-inquire-id="${p.id}">임대 문의</button>
     </div>`;
+  document.getElementById("detailModal").dataset.propId = String(id);
   document.getElementById("detailModal").style.display = "flex";
 }
 document.getElementById("detailClose").addEventListener("click", ()=>{ document.getElementById("detailModal").style.display = "none"; });
@@ -1074,6 +1098,14 @@ document.getElementById("detailModal").addEventListener("click", (e)=>{ if(e.tar
 document.getElementById("detailBody").addEventListener("click", async (e)=>{
   const img = e.target.closest(".detail-gallery-grid img");
   if(img){ document.getElementById("lightboxImg").src = img.dataset.full; document.getElementById("lightbox").style.display = "flex"; return; }
+  const delBtn = e.target.closest(".gallery-del");
+  if(delBtn){
+    const scope = delBtn.dataset.delScope, key = delBtn.dataset.delKey, idx = Number(delBtn.dataset.delIdx);
+    if(scope==="building"){ IMAGE_MAP[key].splice(idx,1); await saveImages(); }
+    else{ UNIT_IMAGE_MAP[key].splice(idx,1); await saveUnitImages(); }
+    openDetailModal(Number(document.getElementById("detailModal").dataset.propId));
+    return;
+  }
   const loanBtn = e.target.closest("[data-modal-loan-id]");
   if(loanBtn){ document.getElementById("detailModal").style.display = "none"; openLoanCalc(Number(loanBtn.dataset.modalLoanId)); return; }
   const inquireBtn = e.target.closest("[data-modal-inquire-id]");
@@ -1084,6 +1116,24 @@ document.getElementById("detailBody").addEventListener("click", async (e)=>{
     inquireBtn.textContent = "문의 접수됨 (담당자가 곧 연락드립니다)";
     inquireBtn.disabled = true;
   }
+});
+document.getElementById("detailBody").addEventListener("change", async (e)=>{
+  const input = e.target.closest("[data-upload-scope]");
+  if(!input) return;
+  const scope = input.dataset.uploadScope, key = input.dataset.uploadKey;
+  const files = Array.from(input.files || []);
+  for(const file of files){
+    const dataUrl = await new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    if(scope==="building"){ if(!IMAGE_MAP[key]) IMAGE_MAP[key]=[]; IMAGE_MAP[key].push(dataUrl); }
+    else{ if(!UNIT_IMAGE_MAP[key]) UNIT_IMAGE_MAP[key]=[]; UNIT_IMAGE_MAP[key].push(dataUrl); }
+  }
+  if(scope==="building") await saveImages(); else await saveUnitImages();
+  openDetailModal(Number(document.getElementById("detailModal").dataset.propId));
 });
 document.getElementById("lightbox").addEventListener("click", ()=>{ document.getElementById("lightbox").style.display = "none"; });
 
@@ -1164,6 +1214,7 @@ document.getElementById("exportSiteBtn").addEventListener("click", ()=>{
   html = replaceDataScript(html, "maint-data", JSON.stringify(MAINT_MAP));
   html = replaceDataScript(html, "addr-data", JSON.stringify(ADDRESS_MAP));
   html = replaceDataScript(html, "images-data", JSON.stringify(IMAGE_MAP));
+  html = replaceDataScript(html, "unit-images-data", JSON.stringify(UNIT_IMAGE_MAP));
   const blob = new Blob([html], {type:"text/html"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -1173,6 +1224,29 @@ document.getElementById("exportSiteBtn").addEventListener("click", ()=>{
 });
 
 /* ---------------- Admin: Excel bulk upload ---------------- */
+document.getElementById("excelDownloadBtn").addEventListener("click", ()=>{
+  const propRows = PROPERTIES.map(p=>({
+    "건물명": p.building,
+    "지역": p.region,
+    "호실": p.unit,
+    "상태": p.status==="vacant" ? "공실" : "임대중",
+    "전용면적(평)": p.areaExclusivePy,
+    "계약면적(평)": p.areaContractPy,
+    "보증금(만원)": p.depositManwon,
+    "월임대료(만원, VAT 별도)": p.rentManwon,
+    "추천업종(콤마구분)": (p.recommend||[]).join(","),
+    "비고": "",
+  }));
+  const maintRows = Object.keys(MAINT_MAP).map(b=>({"건물명": b, "관리비 안내 문구(VAT 별도)": MAINT_MAP[b]}));
+  const addrRows = Object.keys(ADDRESS_MAP).map(b=>({"건물명": b, "주소": ADDRESS_MAP[b]}));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(propRows), "매물현황");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(maintRows), "건물별_관리비");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(addrRows), "건물별_주소");
+  XLSX.writeFile(wb, "대방산업개발_임대현황_업데이트양식.xlsx");
+});
+
 let pendingExcelData = null;
 
 function excelStatusMsg(html, isError){
@@ -1210,7 +1284,7 @@ document.getElementById("excelFileInput").addEventListener("change", async (e)=>
         areaExclusivePy: row["전용면적(평)"]!=null ? Number(row["전용면적(평)"]) : null,
         areaContractPy: row["계약면적(평)"]!=null ? Number(row["계약면적(평)"]) : null,
         depositManwon: row["보증금(만원)"]!=null && row["보증금(만원)"]!=="" ? Number(row["보증금(만원)"]) : null,
-        rentManwon: row["월임대료(만원)"]!=null && row["월임대료(만원)"]!=="" ? Number(row["월임대료(만원)"]) : null,
+        rentManwon: (row["월임대료(만원, VAT 별도)"] ?? row["월임대료(만원)"]) != null && (row["월임대료(만원, VAT 별도)"] ?? row["월임대료(만원)"]) !== "" ? Number(row["월임대료(만원, VAT 별도)"] ?? row["월임대료(만원)"]) : null,
         recommend
       });
     });
@@ -1219,7 +1293,7 @@ document.getElementById("excelFileInput").addEventListener("change", async (e)=>
     if(sheetMaint){
       XLSX.utils.sheet_to_json(sheetMaint, {defval:null}).forEach(row=>{
         const b = (row["건물명"]||"").toString().trim();
-        if(b) newMaint[b] = (row["관리비 안내 문구"]||"").toString().trim();
+        if(b) newMaint[b] = ((row["관리비 안내 문구(VAT 별도)"] ?? row["관리비 안내 문구"]) || "").toString().trim();
       });
     }
     const newAddr = {};
