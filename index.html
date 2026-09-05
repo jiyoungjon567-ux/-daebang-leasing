@@ -157,6 +157,10 @@
   .loan-result .lr-row .v{font-family:var(--font-mono);}
   .loan-warn{color:var(--pop);font-size:12px;margin-top:6px;}
   .loan-disclaimer{font-size:11px;color:#8A8F94;line-height:1.6;margin-top:10px;}
+  .inquiry-form{margin-top:14px;border-top:1px solid var(--line);padding-top:14px;}
+  .inquiry-form h4{font-size:13px;margin:0 0 10px;color:var(--ink-soft);font-family:var(--font-mono);font-weight:600;}
+  .inquiry-form .field input, .inquiry-form .field textarea{width:100%;border:1px solid var(--line);padding:8px 10px;font-size:13px;font-family:var(--font-body);margin-bottom:8px;}
+  .inquiry-note{font-size:11px;color:var(--ink-soft);margin-top:8px;line-height:1.5;}
   .empty-state{padding:44px 20px;text-align:center;border:1px dashed var(--line);color:var(--ink-soft);font-size:14px;}
   .load-more-row{display:flex;justify-content:center;margin-top:22px;}
   .btn-loadmore{background:#fff;border:1px solid var(--line);color:var(--ink);padding:11px 22px;font-size:13.5px;cursor:pointer;}
@@ -872,6 +876,7 @@ function renderImageAdmin(){
 }
 
 const ADMIN_PASSWORD = "dudrhks123!"; // 배포 전 반드시 변경 확인
+const ADMIN_EMAIL = "jyh93@db-dvp.co.kr"; // 임대 문의가 도착할 이메일 주소
 let adminAuthed = (sessionStorage.getItem("daebang_admin_authed") === "true");
 
 function openAdminSection(){
@@ -1093,9 +1098,21 @@ function openDetailModal(id){
     ${recTags}
     ${unitGallery}
     ${buildingGallery}
-    <div class="detail-actions">
+    <div class="detail-actions" style="flex-direction:column;align-items:stretch;">
       ${loanBtn}
-      <button class="btn-primary" data-modal-inquire-id="${p.id}">임대 문의</button>
+      <div class="inquiry-form">
+        <h4>임대 문의하기</h4>
+        <div class="field"><input type="text" id="inq_name" placeholder="성함"></div>
+        <div class="field"><input type="text" id="inq_phone" placeholder="연락처 (휴대폰 번호)"></div>
+        <div class="field"><textarea id="inq_message" placeholder="문의 내용을 남겨주세요" rows="3"></textarea></div>
+        <button class="btn-primary" data-modal-inquire-id="${p.id}" style="width:100%;">이메일로 문의 보내기</button>
+        <p class="inquiry-note">버튼을 누르면 회원님의 이메일 앱이 열립니다. 그대로 "보내기"를 눌러주시면 담당자에게 접수됩니다.</p>
+        <div id="inquiryFallback" style="display:none;margin-top:12px;background:var(--stone);border:1px solid var(--line);padding:12px;">
+          <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 8px;">이메일 앱이 자동으로 열리지 않았다면, 아래 내용을 복사해서 <b>${ADMIN_EMAIL}</b> 으로 직접 보내주세요.</p>
+          <textarea id="inquiryFallbackText" readonly rows="6" style="width:100%;font-size:12px;font-family:var(--font-mono);border:1px solid var(--line);padding:8px;"></textarea>
+          <button type="button" id="inquiryCopyBtn" class="btn-secondary" style="margin-top:8px;">내용 복사하기</button>
+        </div>
+      </div>
     </div>`;
   document.getElementById("detailModal").dataset.propId = String(id);
   document.getElementById("detailModal").style.display = "flex";
@@ -1118,10 +1135,50 @@ document.getElementById("detailBody").addEventListener("click", async (e)=>{
   const inquireBtn = e.target.closest("[data-modal-inquire-id]");
   if(inquireBtn){
     const id = Number(inquireBtn.dataset.modalInquireId);
+    const p = PROPERTIES.find(x=>x.id===id);
+    const name = (document.getElementById("inq_name").value||"").trim();
+    const phone = (document.getElementById("inq_phone").value||"").trim();
+    const message = (document.getElementById("inq_message").value||"").trim();
+    if(!phone){ alert("연락처를 입력해 주세요."); return; }
     CLICK_COUNTS[id] = (CLICK_COUNTS[id]||0) + 1;
     await saveClicks();
-    inquireBtn.textContent = "문의 접수됨 (담당자가 곧 연락드립니다)";
-    inquireBtn.disabled = true;
+    const subject = `[임대문의] ${p.building} ${p.unit}호`;
+    const bodyLines = [
+      `매물: ${p.building} ${p.unit}호`,
+      `지역: ${p.region}`,
+      ``,
+      `성함: ${name || "(미입력)"}`,
+      `연락처: ${phone}`,
+      `문의내용:`,
+      message || "(내용 없음)"
+    ];
+    const bodyText = bodyLines.join("\n");
+    const mailtoUrl = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+
+    // 실제 <a> 클릭 방식으로 시도 (location.href 강제이동보다 차단될 확률이 낮음)
+    const a = document.createElement("a");
+    a.href = mailtoUrl;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // 이메일 앱이 안 열리는 환경(인앱 브라우저 등)을 위한 대체 안내 노출
+    const fallback = document.getElementById("inquiryFallback");
+    fallback.style.display = "block";
+    document.getElementById("inquiryFallbackText").value = `받는사람: ${ADMIN_EMAIL}\n제목: ${subject}\n\n${bodyText}`;
+  }
+  const copyBtn = e.target.closest("#inquiryCopyBtn");
+  if(copyBtn){
+    const ta = document.getElementById("inquiryFallbackText");
+    ta.select();
+    try{
+      navigator.clipboard.writeText(ta.value);
+      copyBtn.textContent = "복사됨!";
+      setTimeout(()=>copyBtn.textContent = "내용 복사하기", 1500);
+    }catch(e){
+      document.execCommand("copy");
+    }
   }
 });
 document.getElementById("detailBody").addEventListener("change", async (e)=>{
