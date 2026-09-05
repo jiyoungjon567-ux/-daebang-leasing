@@ -532,7 +532,7 @@ const BIZ_KEYWORDS = {
   "미용/뷰티": ["미용실","네일","피부관리","뷰티"],
   "부동산": ["부동산","공인중개"]
 };
-const REGION_KEYWORDS = ["동탄","양주옥정","마곡","충남내포","광주전남혁신","나주","강서구","서울"];
+const REGION_KEYWORDS = ["동탄","화성","양주옥정","양주","옥정","마곡","충남내포","내포","예산","홍성","광주전남혁신","나주","빛가람","강서구","강서","서울"];
 const PAGE_SIZE = 24;
 const POPULAR_TOP_N = 5;
 // 대략적인 건물 좌표 (Google Places 검색 기반, 정밀 로드뷰 좌표 아님 - 필요 시 보정 요망)
@@ -930,11 +930,18 @@ function miniCard(p){
     <div class="mc-spec">전용 ${p.areaExclusivePy ?? '-'}평 · 보증금 ${deposit||'문의'} · 월 ${rent||'문의'}(VAT별도)</div>
   </div>`;
 }
+function normSpace(s){ return (s||"").replace(/\s+/g, ""); }
 function ruleBasedFallback(text){
   const region = REGION_KEYWORDS.find(r=>text.includes(r)) || null;
   let biz = null;
   for(const [type, kws] of Object.entries(BIZ_KEYWORDS)){ if(kws.some(k=>text.includes(k))){ biz = type; break; } }
-  const matches = filterProperties({biz, region: region||"all", vacantOnly:true});
+  const regionNorm = region ? normSpace(region) : null;
+  const matches = PROPERTIES.filter(p=>{
+    if(p.status!=="vacant") return false;
+    if(biz && !(p.recommend||[]).includes(biz)) return false;
+    if(regionNorm && !normSpace(p.region).includes(regionNorm) && !normSpace(p.building).includes(regionNorm)) return false;
+    return true;
+  });
   const intro = (!region && !biz) ? "지역이나 업종을 조금 더 알려주시면 더 정확하게 찾아드릴 수 있어요."
     : matches.length ? `${region?region+" 지역":"전체 지역"} 중 ${biz?biz+"에 어울리는":"추천"} 공실 ${matches.length}건을 찾았어요. (임시 응답 모드)`
     : "조건에 맞는 공실을 찾지 못했어요. 다른 지역이나 업종으로 다시 문의해 주세요. (임시 응답 모드)";
