@@ -1184,7 +1184,7 @@ function openDetailModal(id){
   const recTags = (p.recommend && p.recommend.length) ? `<div class="rec-tags">${p.recommend.map(r=>`<span class="rec-tag">${r} 추천</span>`).join("")}</div>` : "";
   const buildingGallery = renderGalleryBlock("건물 위치 안내", IMAGE_MAP[p.building]||[], "building", p.building);
   const unitGallery = renderGalleryBlock("호실 사진", UNIT_IMAGE_MAP[p.id]||[], "unit", String(p.id));
-  const loanBtn = (p.status==="vacant" && p.depositManwon) ? `<button class="btn-primary" data-modal-loan-id="${p.id}">대출 계산기</button>` : "";
+  const loanBtn = (p.status==="vacant") ? `<button class="btn-primary" data-modal-loan-id="${p.id}">대출 계산기</button>` : "";
 
   document.getElementById("detailTitle").textContent = `${p.building} · ${p.unit}호`;
   document.getElementById("detailBody").innerHTML = `
