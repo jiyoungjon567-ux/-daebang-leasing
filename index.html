@@ -88,6 +88,13 @@
   .listing-section{padding:32px 0 40px;}
   .listing-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
   .listing-head h2{font-size:19px;margin:0;font-weight:700;}
+  .view-tabs{display:flex;gap:6px;}
+  .view-tab-btn{border:1px solid var(--line);background:#fff;color:var(--ink-soft);padding:6px 12px;font-size:12.5px;cursor:pointer;}
+  .view-tab-btn.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .location-block{background:var(--paper);border:1px solid var(--line);padding:16px 18px;margin-bottom:14px;}
+  .location-block h3{font-size:15px;margin:0 0 2px;}
+  .location-block .loc-meta{font-size:12px;color:var(--ink-soft);margin-bottom:10px;}
+  .location-empty-view{padding:44px 20px;text-align:center;border:1px dashed var(--line);color:var(--ink-soft);font-size:14px;}
   .listing-count{font-family:var(--font-mono);font-size:13px;color:var(--ink-soft);}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
   .card{background:var(--paper);border:1px solid var(--line);display:flex;flex-direction:column;}
@@ -379,10 +386,17 @@
 <section class="listing-section">
   <div class="wrap">
     <div class="listing-head">
-      <h2>전체 매물</h2>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <h2>전체 매물</h2>
+        <div class="view-tabs">
+          <button class="view-tab-btn active" id="viewTabList">매물 목록</button>
+          <button class="view-tab-btn" id="viewTabLocation">위치보기</button>
+        </div>
+      </div>
       <span class="listing-count" id="listingCount"></span>
     </div>
     <div class="grid" id="grid"></div>
+    <div id="locationView" style="display:none;"></div>
     <div class="load-more-row" id="loadMoreRow" style="display:none;">
       <button class="btn-loadmore" id="loadMoreBtn">매물 더 보기</button>
     </div>
@@ -635,6 +649,7 @@ let UNIT_IMAGE_MAP = {};
 let CLICK_COUNTS = {};
 let FAVORITES = new Set();
 let state = { biz:null, region:"all", vacantOnly:false, building:null, favOnly:false };
+let viewMode = "list";
 let visibleCount = PAGE_SIZE;
 let adminOpen = false;
 let editingId = null;
@@ -787,6 +802,16 @@ function propertyCard(p, popularIds){
 
 function renderGrid(){
   const list = filterProperties();
+  if(viewMode === "location"){
+    document.getElementById("listingCount").textContent = `${new Set(list.map(p=>p.building)).size}개 건물`;
+    document.getElementById("grid").style.display = "none";
+    document.getElementById("loadMoreRow").style.display = "none";
+    document.getElementById("locationView").style.display = "block";
+    renderLocationView(list);
+    return;
+  }
+  document.getElementById("grid").style.display = "";
+  document.getElementById("locationView").style.display = "none";
   document.getElementById("listingCount").textContent = `${list.length}건`;
   const grid = document.getElementById("grid");
   const shown = list.slice(0, visibleCount);
@@ -795,6 +820,65 @@ function renderGrid(){
     : `<div class="empty-state" style="grid-column:1/-1;">조건에 맞는 매물이 없습니다. 필터를 조정해 보세요.</div>`;
   document.getElementById("loadMoreRow").style.display = (list.length > visibleCount) ? "flex" : "none";
 }
+function renderLocationView(list){
+  const buildings = [...new Set(list.map(p=>p.building))];
+  const container = document.getElementById("locationView");
+  if(!buildings.length){ container.innerHTML = `<div class="location-empty-view">조건에 맞는 건물이 없습니다. 필터를 조정해 보세요.</div>`; return; }
+  container.innerHTML = buildings.map(b=>{
+    const addr = ADDRESS_MAP[b] || "";
+    const region = (list.find(p=>p.building===b)||{}).region || "";
+    const imgs = IMAGE_MAP[b] || [];
+    const thumbs = imgs.map((src,i)=>`<div class="img-thumb"><img src="${src}">${adminAuthed?`<button data-loc-del-building="${b}" data-loc-del-idx="${i}">&times;</button>`:""}</div>`).join("");
+    const uploadControl = adminAuthed
+      ? `<label class="img-upload-btn" style="margin-top:8px;display:inline-block;">이미지 추가<input type="file" accept="image/*" multiple data-loc-upload-building="${b}" style="display:none;"></label>`
+      : "";
+    return `<div class="location-block">
+      <h3>${b}</h3>
+      <div class="loc-meta">${region}${addr?` · ${addr}`:''}</div>
+      <div class="img-thumbs">${thumbs}</div>
+      ${imgs.length?'':'<div class="gallery-empty">등록된 이미지가 없습니다.</div>'}
+      ${uploadControl}
+    </div>`;
+  }).join("");
+  container.querySelectorAll("input[data-loc-upload-building]").forEach(input=>{
+    input.addEventListener("change", async (e)=>{
+      const building = input.dataset.locUploadBuilding;
+      const files = Array.from(e.target.files || []);
+      for(const file of files){
+        const dataUrl = await new Promise((resolve,reject)=>{
+          const reader = new FileReader();
+          reader.onload = ()=>resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        if(!IMAGE_MAP[building]) IMAGE_MAP[building] = [];
+        IMAGE_MAP[building].push(dataUrl);
+      }
+      await saveImages();
+      renderGrid();
+    });
+  });
+  container.querySelectorAll("button[data-loc-del-building]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const b = btn.dataset.locDelBuilding, idx = Number(btn.dataset.locDelIdx);
+      IMAGE_MAP[b].splice(idx,1);
+      await saveImages();
+      renderGrid();
+    });
+  });
+}
+document.getElementById("viewTabList").addEventListener("click", ()=>{
+  viewMode = "list";
+  document.getElementById("viewTabList").classList.add("active");
+  document.getElementById("viewTabLocation").classList.remove("active");
+  renderGrid();
+});
+document.getElementById("viewTabLocation").addEventListener("click", ()=>{
+  viewMode = "location";
+  document.getElementById("viewTabLocation").classList.add("active");
+  document.getElementById("viewTabList").classList.remove("active");
+  renderGrid();
+});
 document.getElementById("loadMoreBtn").addEventListener("click", ()=>{ visibleCount += PAGE_SIZE; renderGrid(); });
 
 document.getElementById("grid").addEventListener("click", (e)=>{
@@ -1005,6 +1089,7 @@ function tryAdminLogin(){
     sessionStorage.setItem("daebang_admin_authed", "true");
     document.getElementById("adminLoginModal").style.display = "none";
     openAdminSection();
+    renderGrid();
   }else{
     document.getElementById("adminLoginError").style.display = "block";
   }
