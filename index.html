@@ -319,6 +319,7 @@
       <button class="nav-link-btn" id="navLoanOpen">대출 계산기</button>
       <button class="nav-link-btn" id="navContactOpen">임대 문의</button>
       <button class="admin-toggle" id="adminToggle">관리자 모드</button>
+      <button class="admin-toggle" id="adminLogoutBtn" style="display:none;">로그아웃</button>
     </nav>
   </div>
 </header>
@@ -1065,6 +1066,7 @@ function openAdminSection(){
   adminOpen = true;
   document.getElementById("adminToggle").classList.add("on");
   document.getElementById("adminSection").style.display = "block";
+  document.getElementById("adminLogoutBtn").style.display = "inline-block";
   renderAdminTable();
 }
 function closeAdminSection(){
@@ -1080,6 +1082,14 @@ document.getElementById("adminToggle").addEventListener("click", ()=>{
   document.getElementById("adminLoginError").style.display = "none";
   document.getElementById("adminLoginModal").style.display = "flex";
   setTimeout(()=>document.getElementById("adminPasswordInput").focus(), 50);
+});
+document.getElementById("adminLogoutBtn").addEventListener("click", ()=>{
+  adminAuthed = false;
+  sessionStorage.removeItem("daebang_admin_authed");
+  closeAdminSection();
+  document.getElementById("adminLogoutBtn").style.display = "none";
+  renderGrid();
+  alert("로그아웃되었습니다. 이제 일반 방문자 화면과 동일하게 보입니다 (관리 버튼들이 사라집니다).");
 });
 
 function tryAdminLogin(){
@@ -1783,6 +1793,7 @@ document.getElementById("scrollTopBtn").addEventListener("click", ()=>{ window.s
   renderHeroStats();
   renderFilters();
   renderGrid();
+  if(adminAuthed){ document.getElementById("adminLogoutBtn").style.display = "inline-block"; }
 })();
 </script>
 </body>
