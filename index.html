@@ -6,8 +6,8 @@
 <meta name="description" content="대방산업개발이 보유한 전국 상가 자산의 공실 현황과 임대 조건을 확인하고, 지역·업종별 맞춤 매물을 검색할 수 있는 임대 포털입니다.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2316233A'/%3E%3Ctext x='16' y='23' font-size='18' font-family='Arial' font-weight='bold' fill='%23A8823D' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
 <title>대방산업개발 임대 포털 — 전국 상가 공실 안내</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- 카카오맵 JavaScript SDK -->
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=6872b476abb6e78467cf249cd2a2c465&autoload=false&libraries=services"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
@@ -65,7 +65,6 @@
   .map-building-item.active{background:var(--brass-soft);}
   .map-building-item .mb-name{font-weight:600;margin-bottom:1px;}
   .map-building-item .mb-meta{font-size:10.5px;color:var(--ink-soft);font-family:var(--font-mono);}
-  .leaflet-marker-icon.marker-pin{background:transparent;border:none;}
   .pin-dot{width:16px;height:16px;border-radius:50%;background:var(--navy);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);}
   .pin-dot.has-vacant{background:var(--brass);}
   .pin-dot.active-pin{background:var(--pop);width:20px;height:20px;}
@@ -656,7 +655,7 @@ let visibleCount = PAGE_SIZE;
 let adminOpen = false;
 let editingId = null;
 let storageReady = false;
-let mapInstance = null;
+let kakaoMap = null;
 let mapMarkers = {};
 
 /* ---------------- Storage ---------------- */
@@ -749,7 +748,7 @@ function renderFilters(){
     visibleCount = PAGE_SIZE;
     document.getElementById("vacantOnly").checked = false;
     document.getElementById("favOnly").checked = false;
-    if(mapInstance){ updateMarkerStyles(); renderMapSideList(); }
+    if(kakaoMap){ updateMarkerStyles(); renderMapSideList(); }
     renderFilters(); renderGrid();
   };
 }
@@ -1439,21 +1438,33 @@ document.getElementById("lightbox").addEventListener("click", ()=>{ document.get
 
 /* ---------------- Map ---------------- */
 function initMap(){
-  mapInstance = L.map('mapEl', {scrollWheelZoom:false}).setView([36.5, 127.6], 7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(mapInstance);
-
-  const activeBuildings = new Set(PROPERTIES.map(p=>p.building));
-  Object.keys(BUILDING_COORDS).filter(b=>activeBuildings.has(b)).forEach(building=>{
-    const coord = BUILDING_COORDS[building];
-    const vacantCount = PROPERTIES.filter(p=>p.building===building && p.status==="vacant").length;
-    const icon = L.divIcon({className:"marker-pin", html:`<div class="pin-dot ${vacantCount>0?'has-vacant':''}"></div>`, iconSize:[16,16]});
-    const marker = L.marker(coord, {icon}).addTo(mapInstance);
-    marker.bindTooltip(building, {direction:"top"});
-    marker.on("click", ()=> selectBuilding(building));
-    mapMarkers[building] = marker;
+  if(typeof kakao === "undefined" || !kakao.maps){
+    document.getElementById("mapEl").innerHTML = '<div style="padding:24px;text-align:center;color:#5B6068;font-size:13px;">카카오맵을 불러오지 못했습니다. JavaScript 키 및 플랫폼(도메인) 등록을 확인해 주세요.</div>';
+    return;
+  }
+  kakao.maps.load(function(){
+    const container = document.getElementById("mapEl");
+    kakaoMap = new kakao.maps.Map(container, {
+      center: new kakao.maps.LatLng(36.5, 127.6),
+      level: 12
+    });
+    const activeBuildings = new Set(PROPERTIES.map(p=>p.building));
+    Object.keys(BUILDING_COORDS).filter(b=>activeBuildings.has(b)).forEach(building=>{
+      const [lat,lng] = BUILDING_COORDS[building];
+      const vacantCount = PROPERTIES.filter(p=>p.building===building && p.status==="vacant").length;
+      const el = document.createElement("div");
+      el.className = "pin-dot" + (vacantCount>0 ? " has-vacant" : "");
+      el.title = building;
+      el.addEventListener("click", ()=> selectBuilding(building));
+      const overlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(lat, lng),
+        content: el,
+        yAnchor: 0.5,
+        xAnchor: 0.5
+      });
+      overlay.setMap(kakaoMap);
+      mapMarkers[building] = {overlay, el};
+    });
   });
 }
 function selectBuilding(building){
@@ -1462,15 +1473,15 @@ function selectBuilding(building){
   renderGrid();
   renderMapSideList();
   updateMarkerStyles();
-  if(state.building && mapInstance && BUILDING_COORDS[building]){ mapInstance.setView(BUILDING_COORDS[building], 12); }
+  if(state.building && kakaoMap && BUILDING_COORDS[building]){
+    const [lat,lng] = BUILDING_COORDS[building];
+    kakaoMap.setCenter(new kakao.maps.LatLng(lat, lng));
+    kakaoMap.setLevel(5);
+  }
 }
 function updateMarkerStyles(){
-  Object.entries(mapMarkers).forEach(([b,marker])=>{
-    const el = marker.getElement();
-    if(el){
-      const dot = el.querySelector(".pin-dot");
-      if(dot){ dot.classList.toggle("active-pin", state.building===b); }
-    }
+  Object.entries(mapMarkers).forEach(([b,{el}])=>{
+    if(el){ el.classList.toggle("active-pin", state.building===b); }
   });
 }
 function renderMapSideList(){
@@ -1497,8 +1508,8 @@ document.getElementById("mapToggle").addEventListener("change", (e)=>{
   const show = e.target.checked;
   document.getElementById("mapSection").style.display = show ? "block" : "none";
   if(show){
-    if(!mapInstance){ initMap(); renderMapSideList(); }
-    setTimeout(()=>{ if(mapInstance) mapInstance.invalidateSize(); }, 50);
+    if(!kakaoMap){ initMap(); renderMapSideList(); }
+    else{ setTimeout(()=>{ kakaoMap.relayout(); }, 50); }
   }
 });
 
@@ -1777,7 +1788,7 @@ document.getElementById("excelApplyBtn").addEventListener("click", async ()=>{
   excelStatusMsg("반영 완료되었습니다. 매물 목록에 바로 적용됩니다.", false);
   renderHeroStats(); renderFilters(); renderGrid(); renderAdminTable();
   mapMarkers = {};
-  if(mapInstance){ mapInstance.remove(); mapInstance = null; } // 다음에 지도 켤 때 새 데이터로 다시 생성
+  if(kakaoMap){ document.getElementById("mapEl").innerHTML = ""; kakaoMap = null; mapMarkers = {}; } // 다음에 지도 켤 때 새 데이터로 다시 생성
   document.getElementById("mapSection").style.display = "none";
   document.getElementById("mapToggle").checked = false;
 });
