@@ -135,6 +135,12 @@
   .gallery-del{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--pop);color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;}
   .gallery-empty{font-size:12.5px;color:var(--ink-soft);}
   .image-disclaimer{font-size:11px;color:var(--ink-soft);line-height:1.6;margin-top:14px;padding-top:10px;border-top:1px solid var(--line);}
+  .sangkwon-widget{margin-top:14px;padding:12px 14px;background:var(--stone);border:1px solid var(--line);}
+  .sangkwon-widget h4{font-size:13px;margin:0 0 8px;font-weight:700;}
+  .sangkwon-src{font-size:10.5px;font-weight:400;color:var(--ink-soft);}
+  .sangkwon-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .sangkwon-row select{border:1px solid var(--line);padding:7px 8px;font-size:13px;background:#fff;}
+  .sangkwon-result{margin-top:10px;font-size:13px;color:var(--ink);min-height:18px;}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2100;display:flex;align-items:center;justify-content:center;padding:20px;}
   .lightbox img{max-width:100%;max-height:90vh;}
   .img-admin-row{display:flex;gap:10px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);}
@@ -639,6 +645,7 @@ const BUILDING_COORDS = {
   "양주옥정신도시 대방 엘리움 어반시티 상가": [37.8185, 127.0930],
   "광주전남혁신 2차 상가": [35.0174, 126.7792],
 };
+const SANGKWON_WORKER_URL = "https://daebang-v2.jiyoungjon567.workers.dev/";
 
 /* ---------------- State ---------------- */
 let PROPERTIES = [];
@@ -1319,6 +1326,17 @@ function openDetailModal(id){
   const buildingGallery = renderGalleryBlock("건물 위치 안내", IMAGE_MAP[p.building]||[], "building", p.building);
   const unitGallery = renderGalleryBlock("호실 사진", UNIT_IMAGE_MAP[p.id]||[], "unit", String(p.id));
   const loanBtn = (p.status==="vacant") ? `<button class="btn-primary" data-modal-loan-id="${p.id}">대출 계산기</button>` : "";
+  const sangkwonWidget = (p.status==="vacant" && BUILDING_COORDS[p.building]) ? `
+    <div class="sangkwon-widget">
+      <h4>주변 상권 확인 <span class="sangkwon-src">(소상공인시장진흥공단 공공데이터 기준)</span></h4>
+      <div class="sangkwon-row">
+        <select id="sangkwonBiz">
+          ${BIZ_TYPES.map(b=>`<option value="${b}" ${(p.recommend||[])[0]===b?'selected':''}>${b}</option>`).join("")}
+        </select>
+        <button class="btn-secondary" id="sangkwonCheckBtn" data-pid="${p.id}">반경 500m 경쟁업체 확인</button>
+      </div>
+      <div id="sangkwonResult" class="sangkwon-result"></div>
+    </div>` : "";
 
   document.getElementById("detailTitle").textContent = `${p.building} · ${p.unit}호`;
   document.getElementById("detailBody").innerHTML = `
@@ -1328,6 +1346,7 @@ function openDetailModal(id){
     <div class="spec-list detail-spec" style="margin-top:10px;">${priceRows}</div>
     <div class="maint-note">관리비 안내: ${maint} (VAT 별도, 실사용량에 따라 변동될 수 있는 예상 금액)</div>
     ${recTags}
+    ${sangkwonWidget}
     ${unitGallery}
     ${buildingGallery}
     <p class="image-disclaimer">※ 위 이미지는 호실 위치 확인을 돕기 위한 참고용 자료이며, 실제 현장과 다를 수 있습니다. 면적·구조 등 정확한 내용은 반드시 담당자를 통해 별도로 확인해 주시기 바랍니다.</p>
@@ -1365,6 +1384,30 @@ document.getElementById("detailBody").addEventListener("click", async (e)=>{
   }
   const loanBtn = e.target.closest("[data-modal-loan-id]");
   if(loanBtn){ document.getElementById("detailModal").style.display = "none"; openLoanCalc(loanBtn.dataset.modalLoanId); return; }
+  const sangkwonBtn = e.target.closest("#sangkwonCheckBtn");
+  if(sangkwonBtn){
+    const p = PROPERTIES.find(x=>x.id===sangkwonBtn.dataset.pid);
+    const coord = BUILDING_COORDS[p.building];
+    const biz = document.getElementById("sangkwonBiz").value;
+    const resultEl = document.getElementById("sangkwonResult");
+    resultEl.textContent = "조회 중...";
+    sangkwonBtn.disabled = true;
+    try{
+      const [lat, lng] = coord;
+      const url = `${SANGKWON_WORKER_URL}?cx=${lng}&cy=${lat}&radius=500&biz=${encodeURIComponent(biz)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if(data.resultCode === "00" && data.totalCount !== null){
+        resultEl.innerHTML = `이 건물 반경 500m 안에 <b>${biz}</b> 업종이 <b>${data.totalCount}개</b> 있어요.`;
+      }else{
+        resultEl.textContent = "조회에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+      }
+    }catch(e){
+      resultEl.textContent = "조회 중 오류가 발생했습니다.";
+    }
+    sangkwonBtn.disabled = false;
+    return;
+  }
   const inquireBtn = e.target.closest("[data-modal-inquire-id]");
   if(inquireBtn){
     const id = inquireBtn.dataset.modalInquireId;
