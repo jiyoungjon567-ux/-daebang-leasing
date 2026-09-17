@@ -341,6 +341,7 @@
       <button class="nav-link-btn" id="navChatOpen">맞춤 추천</button>
       <button class="nav-link-btn" id="navLoanOpen">대출 계산기</button>
       <button class="nav-link-btn" id="navContactOpen">임대 문의</button>
+      <button class="nav-link-btn" id="navInquiryBoardOpen">문의 게시판</button>
       <button class="admin-toggle on" id="adminToggle">관리자 모드</button>
       <button class="admin-toggle" id="adminLogoutBtn" style="display: inline-block;">로그아웃</button>
     </nav>
@@ -1974,6 +1975,35 @@
   <img id="lightboxImg" src="" alt="">
 </div>
 
+<div id="inquiryBoardModal" class="modal-overlay" style="display: none;">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-head"><h3>문의 게시판</h3><button id="inquiryBoardClose" class="chat-close">&times;</button></div>
+    <div style="padding:16px;">
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <button class="btn-primary" id="inquiryTabList">목록</button>
+        <button class="btn-primary" id="inquiryTabWrite">글쓰기</button>
+      </div>
+
+      <div id="inquiryListView">
+        <div id="inquiryAdminGate" style="margin-bottom:12px; font-size:13px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <span id="inquiryAdminStatus">비밀글은 관리자만 볼 수 있습니다.</span>
+          <input type="password" id="inquiryAdminKeyInput" placeholder="관리자 키" style="width:130px;">
+          <button id="inquiryAdminKeySubmit" class="admin-toggle">확인</button>
+        </div>
+        <div id="inquiryListItems" style="max-height:360px; overflow-y:auto;">불러오는 중...</div>
+      </div>
+
+      <div id="inquiryWriteView" style="display:none;">
+        <div class="field"><label>제목</label><input type="text" id="inquiryTitleInput" placeholder="제목을 입력하세요"></div>
+        <div class="field"><label>연락처 (선택)</label><input type="text" id="inquiryContactInput" placeholder="회신 받으실 연락처 (전화번호, 이메일 등)"></div>
+        <div class="field"><label>내용</label><textarea id="inquiryContentInput" rows="5" placeholder="문의 내용을 입력하세요. 등록하신 내용은 비밀글로 처리되어 관리자만 확인할 수 있습니다."></textarea></div>
+        <div id="inquirySubmitError" style="color:var(--pop); font-size:12.5px; margin-bottom:8px; display:none;"></div>
+        <button class="btn-primary" id="inquirySubmitBtn">등록하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="adminLoginModal" class="modal-overlay" style="display: none;">
   <div class="modal-box" style="max-width:360px;">
     <div class="modal-head"><h3>관리자 로그인</h3><button id="adminLoginClose" class="chat-close">×</button></div>
@@ -2041,6 +2071,8 @@ const BUILDING_COORDS = {
   "광주전남혁신 2차 상가": [35.0174, 126.7792],
 };
 const SANGKWON_WORKER_URL = "https://daebang-v2.jiyoungjon567.workers.dev/";
+// 문의 게시판 전용 Worker. Cloudflare에 배포한 뒤 실제 주소로 반드시 바꿔주세요.
+const INQUIRY_WORKER_URL = "https://daebang-inquiries.YOUR-SUBDOMAIN.workers.dev";
 
 /* ---------------- State ---------------- */
 let PROPERTIES = [];
@@ -2461,7 +2493,7 @@ function renderImageAdmin(){
   });
 }
 
-const ADMIN_PASSWORD = "dudrhks123!"; // 배포 전 반드시 변경 확인
+const ADMIN_PASSWORD = "Dbang-2026!Kx7Q"; // 기존 비밀번호가 소스에 노출되어 교체함 (배포 후에도 정기적으로 변경 권장)
 const ADMIN_EMAIL = "jyh93@db-dvp.co.kr"; // 임대 문의가 도착할 이메일 주소
 let adminAuthed = (sessionStorage.getItem("daebang_admin_authed") === "true");
 
@@ -2634,6 +2666,113 @@ document.getElementById("chatClose").addEventListener("click", closeChatWidget);
 document.getElementById("navChatOpen").addEventListener("click", ()=>{ openChatWidget(); });
 document.getElementById("navListingsOpen").addEventListener("click", ()=>{ document.getElementById("listings").scrollIntoView({behavior:"smooth", block:"start"}); });
 document.getElementById("navContactOpen").addEventListener("click", ()=>{ document.getElementById("contact").scrollIntoView({behavior:"smooth", block:"start"}); });
+
+/* ---------------- 문의 게시판 (비밀글, 관리자 전용 열람) ---------------- */
+let inquiryAdminKey = sessionStorage.getItem("daebang_inquiry_admin_key") || "";
+
+function escapeHtml(str){
+  return (str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function showInquiryTab(tab){
+  document.getElementById("inquiryListView").style.display = tab==="list" ? "block" : "none";
+  document.getElementById("inquiryWriteView").style.display = tab==="write" ? "block" : "none";
+}
+async function loadInquiries(){
+  const itemsEl = document.getElementById("inquiryListItems");
+  itemsEl.textContent = "불러오는 중...";
+  document.getElementById("inquiryAdminStatus").textContent = inquiryAdminKey
+    ? "관리자로 보고 있습니다 (문의 내용이 모두 보입니다)"
+    : "비밀글은 관리자만 볼 수 있습니다.";
+  try{
+    const res = await fetch(`${INQUIRY_WORKER_URL}/api/inquiries`, {
+      headers: inquiryAdminKey ? {"X-Admin-Key": inquiryAdminKey} : {}
+    });
+    if(!res.ok) throw new Error("load failed");
+    const items = await res.json();
+    if(items.length === 0){
+      itemsEl.innerHTML = "<div style='color:var(--ink-soft); font-size:13px;'>등록된 문의가 없습니다.</div>";
+      return;
+    }
+    const isAdminView = items.some(it => it.content !== undefined);
+    itemsEl.innerHTML = items.map(it => {
+      const date = new Date(it.createdAt).toLocaleDateString("ko-KR");
+      if(isAdminView){
+        return `<div style="border-bottom:1px solid var(--line); padding:10px 0;">
+          <div style="font-weight:600;">${escapeHtml(it.title)} <span style="font-size:11px; color:var(--ink-soft);">[${escapeHtml(it.status)}]</span></div>
+          <div style="font-size:12px; color:var(--ink-soft);">${date}${it.contact ? " · 연락처: "+escapeHtml(it.contact) : ""}</div>
+          <div style="font-size:13px; margin-top:4px; white-space:pre-wrap;">${escapeHtml(it.content)}</div>
+        </div>`;
+      }
+      return `<div style="border-bottom:1px solid var(--line); padding:10px 0;">
+        <div>🔒 ${escapeHtml(it.title)} <span style="font-size:11px; color:var(--ink-soft);">[${escapeHtml(it.status)}]</span></div>
+        <div style="font-size:12px; color:var(--ink-soft);">${date} · 비밀글입니다 (관리자만 열람 가능)</div>
+      </div>`;
+    }).join("");
+  }catch(e){
+    itemsEl.innerHTML = "<div style='color:var(--pop); font-size:13px;'>불러오지 못했습니다. Worker 배포 주소(INQUIRY_WORKER_URL)가 올바른지 확인해주세요.</div>";
+  }
+}
+function openInquiryBoard(){
+  document.getElementById("inquiryBoardModal").style.display = "flex";
+  showInquiryTab("list");
+  loadInquiries();
+}
+document.getElementById("navInquiryBoardOpen").addEventListener("click", openInquiryBoard);
+document.getElementById("inquiryBoardClose").addEventListener("click", ()=>{ document.getElementById("inquiryBoardModal").style.display = "none"; });
+document.getElementById("inquiryBoardModal").addEventListener("click", (e)=>{ if(e.target.id==="inquiryBoardModal") document.getElementById("inquiryBoardModal").style.display = "none"; });
+document.getElementById("inquiryTabList").addEventListener("click", ()=>{ showInquiryTab("list"); loadInquiries(); });
+document.getElementById("inquiryTabWrite").addEventListener("click", ()=> showInquiryTab("write"));
+
+document.getElementById("inquiryAdminKeySubmit").addEventListener("click", async ()=>{
+  const key = document.getElementById("inquiryAdminKeyInput").value;
+  if(!key) return;
+  try{
+    const res = await fetch(`${INQUIRY_WORKER_URL}/api/inquiries`, { headers: {"X-Admin-Key": key} });
+    if(!res.ok) throw new Error("check failed");
+    const items = await res.json();
+    const isAdminView = items.length === 0 || items.some(it => it.content !== undefined);
+    if(isAdminView){
+      inquiryAdminKey = key;
+      sessionStorage.setItem("daebang_inquiry_admin_key", key);
+      document.getElementById("inquiryAdminKeyInput").value = "";
+      loadInquiries();
+    } else {
+      alert("관리자 키가 올바르지 않습니다.");
+    }
+  }catch(e){
+    alert("확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+  }
+});
+
+document.getElementById("inquirySubmitBtn").addEventListener("click", async ()=>{
+  const title = document.getElementById("inquiryTitleInput").value.trim();
+  const contact = document.getElementById("inquiryContactInput").value.trim();
+  const content = document.getElementById("inquiryContentInput").value.trim();
+  const errEl = document.getElementById("inquirySubmitError");
+  if(!title || !content){
+    errEl.textContent = "제목과 내용을 입력해주세요.";
+    errEl.style.display = "block";
+    return;
+  }
+  errEl.style.display = "none";
+  try{
+    const res = await fetch(`${INQUIRY_WORKER_URL}/api/inquiries`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({title, contact, content})
+    });
+    if(!res.ok) throw new Error("submit failed");
+    document.getElementById("inquiryTitleInput").value = "";
+    document.getElementById("inquiryContactInput").value = "";
+    document.getElementById("inquiryContentInput").value = "";
+    alert("문의가 등록되었습니다. 감사합니다.");
+    showInquiryTab("list");
+    loadInquiries();
+  }catch(e){
+    errEl.textContent = "등록 중 오류가 발생했습니다. Worker 배포 주소가 올바른지 확인해주세요.";
+    errEl.style.display = "block";
+  }
+});
 document.getElementById("heroChatOpen").addEventListener("click", openChatWidget);
 
 /* ---------------- Loan calculator ---------------- */
