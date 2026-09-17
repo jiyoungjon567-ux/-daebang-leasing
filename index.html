@@ -1976,24 +1976,24 @@
 </div>
 
 <div id="inquiryBoardModal" class="modal-overlay" style="display: none;">
-  <div class="modal" style="max-width:640px;">
+  <div class="modal-box" style="max-width:640px;">
     <div class="modal-head"><h3>문의 게시판</h3><button id="inquiryBoardClose" class="chat-close">&times;</button></div>
-    <div style="padding:16px;">
+    <div class="modal-body">
       <div style="display:flex; gap:8px; margin-bottom:14px;">
         <button class="btn-primary" id="inquiryTabList">목록</button>
         <button class="btn-primary" id="inquiryTabWrite">글쓰기</button>
       </div>
 
       <div id="inquiryListView">
-        <div id="inquiryAdminGate" style="margin-bottom:12px; font-size:13px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+        <div id="inquiryAdminGate" style="margin-bottom:12px; font-size:13px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--stone); padding:8px 10px; border:1px solid var(--line);">
           <span id="inquiryAdminStatus">비밀글은 관리자만 볼 수 있습니다.</span>
-          <input type="password" id="inquiryAdminKeyInput" placeholder="관리자 키" style="width:130px;">
+          <input type="password" id="inquiryAdminKeyInput" placeholder="관리자 키" style="width:130px; border:1px solid var(--line); padding:6px 8px; font-size:13px; background:#fff;">
           <button id="inquiryAdminKeySubmit" class="admin-toggle">확인</button>
         </div>
-        <div id="inquiryListItems" style="max-height:360px; overflow-y:auto;">불러오는 중...</div>
+        <div id="inquiryListItems" style="max-height:360px; overflow-y:auto; background:#fff;">불러오는 중...</div>
       </div>
 
-      <div id="inquiryWriteView" style="display:none;">
+      <div id="inquiryWriteView" style="display:none; background:#fff;">
         <div class="field"><label>제목</label><input type="text" id="inquiryTitleInput" placeholder="제목을 입력하세요"></div>
         <div class="field"><label>연락처 (선택)</label><input type="text" id="inquiryContactInput" placeholder="회신 받으실 연락처 (전화번호, 이메일 등)"></div>
         <div class="field"><label>내용</label><textarea id="inquiryContentInput" rows="5" placeholder="문의 내용을 입력하세요. 등록하신 내용은 비밀글로 처리되어 관리자만 확인할 수 있습니다."></textarea></div>
