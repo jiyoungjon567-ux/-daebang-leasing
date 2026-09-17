@@ -53,7 +53,12 @@
   .admin-toggle{background:transparent;border:1px solid var(--line-dark);color:#D7DEEA;padding:7px 14px;font-size:13px;cursor:pointer;}
   .admin-toggle.on{background:var(--brass);border-color:var(--brass);color:#221A0D;}
 
-  .hero{background:var(--navy);color:#fff;padding:56px 0 0;}
+  .hero{
+    background:
+      linear-gradient(180deg, rgba(22,35,58,.86), rgba(22,35,58,.92)),
+      url('hero-bg.jpg') center 30%/cover no-repeat;
+    color:#fff;padding:56px 0 0;
+  }
   .hero-grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:56px;align-items:end;padding-bottom:44px;}
   .hero h1{font-size:36px;font-weight:800;letter-spacing:-0.02em;line-height:1.28;margin:0 0 18px;}
   .hero p.lede{font-size:15.5px;color:#C7D1E2;max-width:48ch;margin:0 0 26px;}
