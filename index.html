@@ -3985,7 +3985,13 @@ document.getElementById("scrollTopBtn").addEventListener("click", ()=>{ window.s
   renderGrid();
   // 방문자에게는 항상 관리자 화면이 닫힌 상태로 보이도록 강제합니다.
   closeAdminSection();
-  if(adminAuthed){ document.getElementById("adminLogoutBtn").style.display = "inline-block"; }
+  if(adminAuthed){
+    document.getElementById("adminLogoutBtn").style.display = "inline-block";
+  } else if(inquiryAdminKey){
+    // 관리자 모드는 로그인되어 있지 않은데 문의 게시판 키만 남아있는 경우(과거 세션 잔여물) 강제로 지웁니다.
+    inquiryAdminKey = "";
+    sessionStorage.removeItem("daebang_inquiry_admin_key");
+  }
   // 카카오톡 등에서 공유된 링크(?id=매물아이디)로 들어온 경우, 해당 매물 상세 팝업을 자동으로 엽니다.
   try {
     const sharedId = new URLSearchParams(location.search).get("id");
