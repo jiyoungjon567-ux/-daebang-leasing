@@ -3038,28 +3038,35 @@ document.getElementById("navContactOpen").addEventListener("click", ()=>{
 });
 document.getElementById("quickInquiryClose").addEventListener("click", ()=>{ document.getElementById("quickInquiryModal").style.display = "none"; });
 document.getElementById("quickInquiryModal").addEventListener("click", (e)=>{ if(e.target.id==="quickInquiryModal") document.getElementById("quickInquiryModal").style.display = "none"; });
-document.getElementById("quickInquirySendBtn").addEventListener("click", ()=>{
+document.getElementById("quickInquirySendBtn").addEventListener("click", async ()=>{
   const name = (document.getElementById("qi_name").value||"").trim();
   const phone = (document.getElementById("qi_phone").value||"").trim();
   const message = (document.getElementById("qi_message").value||"").trim();
   const errEl = document.getElementById("quickInquiryError");
-  if(!name || !message){ errEl.style.display = "block"; return; }
+  if(!name || !message){ errEl.textContent = "성함과 문의 내용을 입력해주세요."; errEl.style.display = "block"; return; }
   errEl.style.display = "none";
+  const btn = document.getElementById("quickInquirySendBtn");
+  btn.disabled = true;
   const subject = `[임대 문의] ${name}`;
-  const bodyLines = [
-    `성함: ${name}`,
-    `연락처: ${phone || "(미입력)"}`,
-    ``,
-    `문의내용:`,
-    message
-  ];
-  const bodyText = bodyLines.join("\n");
-  const mailtoUrl = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-  window.location.href = mailtoUrl;
-  const fallback = document.getElementById("quickInquiryFallback");
-  fallback.style.display = "block";
-  document.getElementById("quickInquiryEmailLabel").textContent = ADMIN_EMAIL;
-  document.getElementById("quickInquiryFallbackText").value = `받는사람: ${ADMIN_EMAIL}\n제목: ${subject}\n\n${bodyText}`;
+  const bodyText = `성함: ${name}\n연락처: ${phone || "(미입력)"}\n\n문의내용:\n${message}`;
+  try{
+    const res = await fetch(`${INQUIRY_WORKER_URL}/api/inquiries`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({title: subject, contact: phone, content: `성함: ${name}\n\n${message}`})
+    });
+    if(!res.ok) throw new Error("submit failed");
+    alert("문의가 접수되었습니다. 담당자가 곧 연락드리겠습니다.");
+    document.getElementById("quickInquiryModal").style.display = "none";
+  }catch(e){
+    const fallback = document.getElementById("quickInquiryFallback");
+    fallback.style.display = "block";
+    document.getElementById("quickInquiryEmailLabel").textContent = ADMIN_EMAIL;
+    document.getElementById("quickInquiryFallbackText").value = `받는사람: ${ADMIN_EMAIL}\n제목: ${subject}\n\n${bodyText}`;
+    errEl.textContent = "자동 접수에 실패했습니다. 아래 내용을 복사해서 이메일로 직접 보내주세요.";
+    errEl.style.display = "block";
+  }
+  btn.disabled = false;
 });
 document.getElementById("quickInquiryCopyBtn").addEventListener("click", ()=>{
   const ta = document.getElementById("quickInquiryFallbackText");
@@ -3385,34 +3392,27 @@ document.getElementById("detailBody").addEventListener("click", async (e)=>{
     const message = (document.getElementById("inq_message").value||"").trim();
     if(!phone){ alert("연락처를 입력해 주세요."); return; }
     inquireBtn.disabled = true;
-    setTimeout(()=>{ inquireBtn.disabled = false; }, 2000);
     CLICK_COUNTS[id] = (CLICK_COUNTS[id]||0) + 1;
     await saveClicks();
     const subject = `[임대문의] ${p.building} ${p.unit}호`;
-    const bodyLines = [
-      `매물: ${p.building} ${p.unit}호`,
-      `지역: ${p.region}`,
-      ``,
-      `성함: ${name || "(미입력)"}`,
-      `연락처: ${phone}`,
-      `문의내용:`,
-      message || "(내용 없음)"
-    ];
-    const bodyText = bodyLines.join("\n");
-    const mailtoUrl = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-
-    // 실제 <a> 클릭 방식으로 시도 (location.href 강제이동보다 차단될 확률이 낮음)
-    const a = document.createElement("a");
-    a.href = mailtoUrl;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // 이메일 앱이 안 열리는 환경(인앱 브라우저 등)을 위한 대체 안내 노출
-    const fallback = document.getElementById("inquiryFallback");
-    fallback.style.display = "block";
-    document.getElementById("inquiryFallbackText").value = `받는사람: ${ADMIN_EMAIL}\n제목: ${subject}\n\n${bodyText}`;
+    const contentText = `매물: ${p.building} ${p.unit}호\n지역: ${p.region}\n성함: ${name || "(미입력)"}\n\n문의내용:\n${message || "(내용 없음)"}`;
+    const bodyText = `받는사람: ${ADMIN_EMAIL}\n제목: ${subject}\n\n${contentText}`;
+    try{
+      const res = await fetch(`${INQUIRY_WORKER_URL}/api/inquiries`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({title: subject, contact: phone, content: contentText})
+      });
+      if(!res.ok) throw new Error("submit failed");
+      alert("문의가 접수되었습니다. 담당자가 곧 연락드리겠습니다.");
+    }catch(e2){
+      // 자동 접수에 실패한 경우에만 이메일 직접 발송용 대체 안내 노출
+      const fallback = document.getElementById("inquiryFallback");
+      fallback.style.display = "block";
+      document.getElementById("inquiryFallbackText").value = bodyText;
+      alert("자동 접수에 실패했습니다. 아래 안내된 내용을 복사해서 이메일로 직접 보내주세요.");
+    }
+    setTimeout(()=>{ inquireBtn.disabled = false; }, 2000);
   }
   const copyBtn = e.target.closest("#inquiryCopyBtn");
   if(copyBtn){
