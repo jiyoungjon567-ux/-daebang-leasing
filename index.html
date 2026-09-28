@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
 <style>
   :root{
     --navy:#16233A; --navy-2:#1F3150; --stone:#EFEFEA; --paper:#FFFFFF;
@@ -2425,6 +2426,11 @@ const BUILDING_COORDS = {
 const SANGKWON_WORKER_URL = "https://daebang-v2.jiyoungjon567.workers.dev/";
 // 문의 게시판 전용 Worker. Cloudflare에 배포한 뒤 실제 주소로 반드시 바꿔주세요.
 const INQUIRY_WORKER_URL = "https://daebang-inquiries.jiyoungjon567.workers.dev";
+// 카카오 개발자센터(developers.kakao.com)에서 발급받은 JavaScript 키로 교체해주세요.
+const KAKAO_JS_KEY = "6872b476abb6e78467cf249cd2a2c465";
+if(window.Kakao && !Kakao.isInitialized() && KAKAO_JS_KEY && KAKAO_JS_KEY !== "YOUR_KAKAO_JAVASCRIPT_KEY"){
+  Kakao.init(KAKAO_JS_KEY);
+}
 
 /* ---------------- State ---------------- */
 let PROPERTIES = [];
@@ -3304,6 +3310,32 @@ function renderGalleryBlock(title, images, scope, key){
   </div>`;
 }
 
+function shareToKakao(p){
+  if(!window.Kakao || !Kakao.isInitialized()){
+    alert("카카오톡 공유 기능이 아직 설정되지 않았습니다. 담당자에게 문의해주세요.");
+    return;
+  }
+  const priceText = (p.status === "vacant")
+    ? `보증금 ${fmtWon(p.depositManwon) || "문의"} · 월 ${fmtWon(p.rentManwon) || "문의"}`
+    : "임대조건 비공개 (담당자 문의)";
+  const imgCandidates = [...(UNIT_IMAGE_MAP[p.id]||[]), ...(IMAGE_MAP[p.building]||[])];
+  const imageUrl = imgCandidates.find(src => /^https?:\/\//.test(src))
+    || "https://jiyoungjon567-ux.github.io/-daebang-leasing/og-image.png";
+  const pageUrl = location.href.split("#")[0];
+  Kakao.Share.sendDefault({
+    objectType: "feed",
+    content: {
+      title: `${p.building} ${p.unit}호`,
+      description: `${p.region} · 전용 ${p.areaExclusivePy ?? '-'}평\n${priceText}`,
+      imageUrl,
+      link: { mobileWebUrl: pageUrl, webUrl: pageUrl }
+    },
+    buttons: [
+      { title: "매물 보러가기", link: { mobileWebUrl: pageUrl, webUrl: pageUrl } }
+    ]
+  });
+}
+
 function openDetailModal(id){
   const p = PROPERTIES.find(x=>x.id===id);
   if(!p) return;
@@ -3347,6 +3379,7 @@ function openDetailModal(id){
     ${buildingGallery}
     <p class="image-disclaimer">※ 위 이미지는 호실 위치 확인을 돕기 위한 참고용 자료이며, 실제 현장과 다를 수 있습니다. 면적·구조 등 정확한 내용은 반드시 담당자를 통해 별도로 확인해 주시기 바랍니다.</p>
     <div class="detail-actions" style="flex-direction:column;align-items:stretch;">
+      <button class="btn-secondary" id="kakaoShareBtn" data-share-id="${p.id}" style="background:#FEE500;border:none;color:#3C1E1E;font-weight:600;">카카오톡으로 공유</button>
       ${loanBtn}
       <div class="inquiry-form">
         <h4>임대 문의하기</h4>
@@ -3368,6 +3401,12 @@ function openDetailModal(id){
 document.getElementById("detailClose").addEventListener("click", ()=>{ document.getElementById("detailModal").style.display = "none"; });
 document.getElementById("detailModal").addEventListener("click", (e)=>{ if(e.target.id==="detailModal") document.getElementById("detailModal").style.display = "none"; });
 document.getElementById("detailBody").addEventListener("click", async (e)=>{
+  const shareBtn = e.target.closest("#kakaoShareBtn");
+  if(shareBtn){
+    const p = PROPERTIES.find(x=>x.id===shareBtn.dataset.shareId);
+    if(p) shareToKakao(p);
+    return;
+  }
   const img = e.target.closest(".detail-gallery-grid img");
   if(img){ document.getElementById("lightboxImg").src = img.dataset.full; document.getElementById("lightbox").style.display = "flex"; return; }
   const delBtn = e.target.closest(".gallery-del");
