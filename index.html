@@ -2892,6 +2892,14 @@ document.getElementById("adminToggle").addEventListener("click", ()=>{
 document.getElementById("adminLogoutBtn").addEventListener("click", ()=>{
   adminAuthed = false;
   sessionStorage.removeItem("daebang_admin_authed");
+  // 문의 게시판 관리자 열람 권한도 함께 해제합니다.
+  inquiryAdminKey = "";
+  sessionStorage.removeItem("daebang_inquiry_admin_key");
+  const inquiryKeyInput = document.getElementById("inquiryAdminKeyInput");
+  if(inquiryKeyInput) inquiryKeyInput.value = "";
+  if(document.getElementById("inquiryAdminStatus")){
+    document.getElementById("inquiryAdminStatus").textContent = "비밀글은 관리자만 볼 수 있습니다.";
+  }
   closeAdminSection();
   document.getElementById("adminLogoutBtn").style.display = "none";
   renderGrid();
@@ -2917,6 +2925,9 @@ async function tryAdminLogin(){
     if(data.ok){
       adminAuthed = true;
       sessionStorage.setItem("daebang_admin_authed", "true");
+      // 관리자 모드 로그인 시 문의 게시판 열람 권한도 함께 부여합니다 (같은 비밀번호이므로 따로 입력할 필요 없음).
+      inquiryAdminKey = val;
+      sessionStorage.setItem("daebang_inquiry_admin_key", val);
       document.getElementById("adminLoginModal").style.display = "none";
       openAdminSection();
       renderGrid();
