@@ -2428,6 +2428,9 @@ const SANGKWON_WORKER_URL = "https://daebang-v2.jiyoungjon567.workers.dev/";
 const INQUIRY_WORKER_URL = "https://daebang-inquiries.jiyoungjon567.workers.dev";
 // 카카오 개발자센터(developers.kakao.com)에서 발급받은 JavaScript 키로 교체해주세요.
 const KAKAO_JS_KEY = "6872b476abb6e78467cf249cd2a2c465";
+// 카카오톡 공유 시 사용할 사이트의 "고정" 실제 주소.
+// 관리자 화면 등 다른 경로에서 공유 버튼을 눌러도 항상 이 주소로 연결됩니다.
+const SITE_BASE_URL = "https://jiyoungjon567-ux.github.io/-daebang-leasing/";
 if(window.Kakao && !Kakao.isInitialized() && KAKAO_JS_KEY && KAKAO_JS_KEY !== "YOUR_KAKAO_JAVASCRIPT_KEY"){
   Kakao.init(KAKAO_JS_KEY);
 }
@@ -3321,7 +3324,8 @@ function shareToKakao(p){
   const imgCandidates = [...(UNIT_IMAGE_MAP[p.id]||[]), ...(IMAGE_MAP[p.building]||[])];
   const imageUrl = imgCandidates.find(src => /^https?:\/\//.test(src))
     || "https://jiyoungjon567-ux.github.io/-daebang-leasing/og-image.png";
-  const pageUrl = location.href.split("#")[0];
+  // 어느 화면(관리자 페이지 등)에서 눌러도 항상 실제 사이트 주소로 연결되도록 고정 주소 + 매물 id를 사용합니다.
+  const pageUrl = `${SITE_BASE_URL}?id=${encodeURIComponent(p.id)}`;
   Kakao.Share.sendDefault({
     objectType: "feed",
     content: {
@@ -3951,6 +3955,13 @@ document.getElementById("scrollTopBtn").addEventListener("click", ()=>{ window.s
   renderFilters();
   renderGrid();
   if(adminAuthed){ document.getElementById("adminLogoutBtn").style.display = "inline-block"; }
+  // 카카오톡 등에서 공유된 링크(?id=매물아이디)로 들어온 경우, 해당 매물 상세 팝업을 자동으로 엽니다.
+  try {
+    const sharedId = new URLSearchParams(location.search).get("id");
+    if(sharedId && PROPERTIES.some(x=>x.id===sharedId)){
+      openDetailModal(sharedId);
+    }
+  } catch(e) {}
 })();
 </script>
 
