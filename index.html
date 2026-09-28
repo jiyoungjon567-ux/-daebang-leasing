@@ -350,8 +350,8 @@
       <button class="nav-link-btn" id="navLoanOpen">대출 계산기</button>
       <button class="nav-link-btn" id="navContactOpen">임대 문의</button>
       <button class="nav-link-btn" id="navInquiryBoardOpen">문의 게시판</button>
-      <button class="admin-toggle on" id="adminToggle">관리자 모드</button>
-      <button class="admin-toggle" id="adminLogoutBtn" style="display: inline-block;">로그아웃</button>
+      <button class="admin-toggle" id="adminToggle">관리자 모드</button>
+      <button class="admin-toggle" id="adminLogoutBtn" style="display: none;">로그아웃</button>
     </nav>
   </div>
 </header>
@@ -1240,7 +1240,7 @@
   </div>
 </section>
 
-<section class="admin-section" id="adminSection" style="display: block;">
+<section class="admin-section" id="adminSection" style="display: none;">
   <div class="wrap">
     <div class="admin-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <h2>매물 관리</h2>
@@ -2865,7 +2865,6 @@ function renderImageAdmin(){
   });
 }
 
-const ADMIN_PASSWORD = "dudrhks123!";
 const ADMIN_EMAIL = "jyh93@db-dvp.co.kr"; // 임대 문의가 도착할 이메일 주소
 let adminAuthed = (sessionStorage.getItem("daebang_admin_authed") === "true");
 
@@ -2899,16 +2898,38 @@ document.getElementById("adminLogoutBtn").addEventListener("click", ()=>{
   alert("로그아웃되었습니다. 이제 일반 방문자 화면과 동일하게 보입니다 (관리 버튼들이 사라집니다).");
 });
 
-function tryAdminLogin(){
+async function tryAdminLogin(){
   const val = document.getElementById("adminPasswordInput").value;
-  if(val === ADMIN_PASSWORD){
-    adminAuthed = true;
-    sessionStorage.setItem("daebang_admin_authed", "true");
-    document.getElementById("adminLoginModal").style.display = "none";
-    openAdminSection();
-    renderGrid();
-  }else{
-    document.getElementById("adminLoginError").style.display = "block";
+  const submitBtn = document.getElementById("adminLoginSubmit");
+  const errEl = document.getElementById("adminLoginError");
+  errEl.style.display = "none";
+  submitBtn.disabled = true;
+  const prevLabel = submitBtn.textContent;
+  submitBtn.textContent = "확인 중...";
+  try{
+    // 비밀번호는 서버(Worker)에서만 비교합니다 - 이 파일 안에는 비밀번호가 들어있지 않습니다.
+    const res = await fetch(`${INQUIRY_WORKER_URL}/api/admin-login`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ password: val }),
+    });
+    const data = await res.json().catch(()=>({ok:false}));
+    if(data.ok){
+      adminAuthed = true;
+      sessionStorage.setItem("daebang_admin_authed", "true");
+      document.getElementById("adminLoginModal").style.display = "none";
+      openAdminSection();
+      renderGrid();
+    }else{
+      errEl.textContent = "비밀번호가 올바르지 않습니다.";
+      errEl.style.display = "block";
+    }
+  }catch(e){
+    errEl.textContent = "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
+    errEl.style.display = "block";
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = prevLabel;
   }
 }
 document.getElementById("adminLoginSubmit").addEventListener("click", tryAdminLogin);
@@ -3951,6 +3972,8 @@ document.getElementById("scrollTopBtn").addEventListener("click", ()=>{ window.s
   renderHeroStats();
   renderFilters();
   renderGrid();
+  // 방문자에게는 항상 관리자 화면이 닫힌 상태로 보이도록 강제합니다.
+  closeAdminSection();
   if(adminAuthed){ document.getElementById("adminLogoutBtn").style.display = "inline-block"; }
   // 카카오톡 등에서 공유된 링크(?id=매물아이디)로 들어온 경우, 해당 매물 상세 팝업을 자동으로 엽니다.
   try {
